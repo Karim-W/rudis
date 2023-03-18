@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::vec::Vec;
+use crate::sets::Set;
+pub mod tests;
 pub struct Store {
     mtx: Arc<Mutex<i32>>,
     data: HashMap<String, String>,
-    sets: HashMap<String, Vec<String>>,
+    sets: HashMap<String, Set<String>>,
 }
 
 enum Command {
@@ -24,6 +26,7 @@ impl From<&str> for Command {
             "SET" => Command::Set(s.to_string(), s.to_string()),
             "SADD" => Command::Sadd(s.to_string(), s.to_string()),
             "SMEMBERS" => Command::Smembers(s.to_string()),
+            "SMEM" => Command::Smembers(s.to_string()),
             "SISMEMBER" => Command::Sismember(s.to_string(), s.to_string()),
             "SREM" => Command::Srem(s.to_string(), s.to_string()),
             _ => Command::None,
@@ -41,30 +44,31 @@ impl Store {
     }
 
     fn get(&self, key: &str) -> Option<&str> {
-        let _lock = self.mtx.lock().unwrap();
+        // let _lock = self.mtx.lock().unwrap();
         self.data.get(key).map(|s| s.as_str())
     }
 
     fn set(&mut self, key: &str, value: &str) {
-        let _lock = self.mtx.lock().unwrap();
+        println!("set {} {}", key, value);
+        // let _lock = self.mtx.lock().unwrap();
         self.data.insert(key.to_string(), value.to_string());
     }
 
     fn sadd(&mut self, key: &str, value: &str) {
         let _lock = self.mtx.lock().unwrap();
-        let set = self.sets.entry(key.to_string()).or_insert(Vec::new());
-        set.push(value.to_string());
+        let set = self.sets.entry(key.to_string()).or_insert(Set::new());
+        set.sadd(value);
     }
 
     fn smembers(&self, key: &str) -> Option<&Vec<String>> {
         let _lock = self.mtx.lock().unwrap();
-        self.sets.get(key)
+        self.sets.get(key).map(|s| s.smembers()).or(None)
     }
 
     fn sismember(&self, key: &str, value: &str) -> bool {
         let _lock = self.mtx.lock().unwrap();
         match self.sets.get(key) {
-            Some(set) => set.contains(&value.to_string()),
+            Some(set) => set.sismember(value),
             None => false,
         }
     }
@@ -73,13 +77,7 @@ impl Store {
         let _lock = self.mtx.lock().unwrap();
         match self.sets.get_mut(key) {
             Some(set) => {
-                let index = set.iter().position(|x| x == value);
-                match index {
-                    Some(index) => {
-                        set.remove(index);
-                    }
-                    None => {}
-                }
+                set.srem(value);
             }
             None => {}
         }
@@ -87,10 +85,12 @@ impl Store {
 
     pub fn exec(&mut self, query: &str) -> Result<Option<String>, Box<dyn std::error::Error>> {
         let split: Vec<&str> = query.split(' ').collect();
+        println!("{:?}", split);
         let command = split[0];
         let key = split[1];
         match command.into() {
             Command::Get(_) => {
+                println!("GET COMMAND INCOMING");
                 let value = self.get(key);
                 match value {
                     Some(value) => Ok(Some(value.to_string())),
