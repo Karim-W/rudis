@@ -182,18 +182,56 @@ mod tests {
     }
 
     #[test]
-    fn exec_invalid_command() {
-        let mut cacher = Store::new();
-        let res = cacher.exec("FOO");
-        assert_eq!(res.is_err(), true);
-        assert_eq!(res.unwrap_err().to_string(), "Invalid command");
-    }
-
-    #[test]
     fn exec_unkown_command() {
         let mut cacher = Store::new();
         let res = cacher.exec("FOO bar");
         assert_eq!(res.is_err(), true);
         assert_eq!(res.unwrap_err().to_string(), "Unknown command");
+    }
+
+    #[test]
+    fn del_works() {
+        let mut cacher = Store::new();
+        cacher.set("foo", "bar");
+        assert_eq!(cacher.get("foo"), Some("bar".into()));
+        cacher.del("foo");
+        assert_eq!(cacher.get("foo"), None);
+    }
+
+    #[test]
+    fn exec_del() {
+        let mut cacher = Store::new();
+        cacher.set("foo", "bar");
+        assert_eq!(cacher.get("foo"), Some("bar".into()));
+        let res = cacher.exec("DEL foo");
+        assert_eq!(res.is_ok(), true);
+        assert_eq!(res.unwrap(), None);
+        assert_eq!(cacher.get("foo"), None);
+    }
+
+    #[test]
+    fn del_set() {
+        let mut cacher = Store::new();
+        cacher.sadd("foo", "bar");
+        cacher.sadd("foo", "baz");
+        cacher.sadd("foo", "qux");
+        cacher.sadd("foo", "qux");
+        assert_eq!(
+            cacher.smembers("foo"),
+            Some(&vec![
+                "bar".to_string(),
+                "baz".to_string(),
+                "qux".to_string()
+            ])
+        );
+        cacher.del("foo");
+        assert_eq!(cacher.smembers("foo"), None);
+    }
+
+    #[test]
+    fn ping() {
+        let mut cacher = Store::new();
+        let res = cacher.exec("PING");
+        assert_eq!(res.unwrap(), Some("PONG".to_string()));
     }
 }

@@ -20,14 +20,24 @@ impl Store {
     }
 
     fn get(&self, key: &str) -> Option<&str> {
-        // let _lock = self.mtx.lock().unwrap();
+        let _lock = self.mtx.lock().unwrap();
         self.data.get(key).map(|s| s.as_str())
     }
 
     fn set(&mut self, key: &str, value: &str) {
         println!("set {} {}", key, value);
-        // let _lock = self.mtx.lock().unwrap();
+        let _lock = self.mtx.lock().unwrap();
         self.data.insert(key.to_string(), value.to_string());
+    }
+
+    fn del(&mut self, key: &str) {
+        let _lock = self.mtx.lock().unwrap();
+        if self.sets.contains_key(key) {
+            self.sets.remove(key);
+        }
+        if self.data.contains_key(key) {
+            self.data.remove(key);
+        }
     }
 
     fn sadd(&mut self, key: &str, value: &str) {
@@ -59,15 +69,20 @@ impl Store {
         }
     }
 
+    fn ping(&self) -> String {
+        "PONG".to_string()
+    }
+
     pub fn exec(&mut self, query: &str) -> Result<Option<String>, Box<dyn std::error::Error>> {
         let split: Vec<&str> = query.split(' ').collect();
         println!("{:?}", split);
-        if split.len() < 2 {
+        if split.len() == 0 {
             return Err("Invalid command".into());
         }
         let command = split[0];
-        let key = split[1];
+        let key = if split.len() > 1 { split[1] } else { "" };
         match command.into() {
+            Command::Ping => Ok(Some(self.ping())),
             Command::Get(_) => {
                 println!("GET COMMAND INCOMING");
                 let value = self.get(key);
@@ -79,6 +94,10 @@ impl Store {
             Command::Set(_, _) => {
                 let value = split[2];
                 self.set(key, value);
+                Ok(None)
+            }
+            Command::Del(_) => {
+                self.del(key);
                 Ok(None)
             }
             Command::Sadd(_, _) => {

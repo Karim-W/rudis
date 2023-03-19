@@ -57,4 +57,28 @@ mod tests {
         let cmd = Command::from("Foo");
         assert_ne!(cmd, Command::Get("GET".to_string()));
     }
+
+    #[test]
+    fn ping_works() {
+        let cmd = Command::from("PING");
+        assert_eq!(cmd, Command::Ping);
+    }
+
+    #[test]
+    fn ping_works_2() {
+        let cmd = Command::from("PING");
+        assert_ne!(cmd, Command::Get("GET".to_string()));
+    }
+
+    #[test]
+    fn del_works() {
+        let cmd = Command::from("DEL");
+        assert_eq!(cmd, Command::Del("DEL".to_string()));
+    }
+
+    #[test]
+    fn del_works_2() {
+        let cmd = Command::from("DEL");
+        assert_ne!(cmd, Command::Get("GET".to_string()));
+    }
 }
